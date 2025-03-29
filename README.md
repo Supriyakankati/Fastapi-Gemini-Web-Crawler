@@ -1,9 +1,10 @@
 This is a FastAPI-based web application
 
-## 🗂️ Project Structure
+## 📂 Project Structure
 
-├── main.py                  # FastAPI backend logic
+```text
+├── main.py                # FastAPI backend logic
 ├── static/
-│   └── index.html           # Web frontend
-├── requirements.txt         # Python dependencies
-└── README.md                # Project documentation
+│   └── index.html         # Web frontend
+├── requirements.txt       # Python dependencies
+└── README.md              # Project documentation
