@@ -112,7 +112,7 @@ async def remember_url(req: URLRequest):
     context_blob = "\n".join(chunks)
     chat_session = gen_model.start_chat()
     chat_session.send_message(f"This is the context from the website:\n{context_blob}")
-    return {"message": f"Scraped, embedded, and loaded into Gemini context from {req.url}"}
+    return {"message": f"Done"}
 
 @app.post("/ask")
 async def ask_question(req: QuestionRequest):
