@@ -60,7 +60,7 @@
         return;
       }
 
-      answerBox.innerText = "⏳ Scraping...";
+      answerBox.innerText = "⏳ Scraping and storing website content...";
 
       const response = await fetch('/remember', {
         method: 'POST',
@@ -81,7 +81,7 @@
         return;
       }
 
-      answerBox.innerText = "🤖 Asking...";
+      answerBox.innerText = "🤖 Asking Gemini...";
 
       const response = await fetch('/ask', {
         method: 'POST',
