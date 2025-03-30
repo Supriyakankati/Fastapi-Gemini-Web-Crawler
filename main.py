@@ -15,7 +15,7 @@ app = FastAPI()
 
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
-genai.configure(api_key="AIzaSyCL1A9NU5pavlxO3TdT72SXI-4SX4F6vDg") # Gemini Api Key
+genai.configure(api_key="AIzaSyC8G0VlPNEScgNtYytUOSEqX80NmxRd2Z8") # Gemini Api Key
 gen_model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
 chat_session = None  
 
