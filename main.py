@@ -8,12 +8,14 @@ import numpy as np
 import requests, re, time
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
+import asyncio
+from playwright.async_api import async_playwright
 
 app = FastAPI()
 
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
-genai.configure(api_key="AIzaSyCFX02LVA_oToLeFT5xWql5Gi3zMOkKdRM") # Gemini Api Key
+genai.configure(api_key="AIzaSyCL1A9NU5pavlxO3TdT72SXI-4SX4F6vDg") # Gemini Api Key
 gen_model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
 chat_session = None  
 
@@ -21,7 +23,7 @@ context_store = {}
 
 class URLRequest(BaseModel):
     url: str
-    max_pages: int = 10
+    max_pages: int = 50
 
 class QuestionRequest(BaseModel):
     question: str
@@ -30,32 +32,84 @@ def is_valid_url(url):
     parsed = urlparse(url)
     return bool(parsed.netloc) and bool(parsed.scheme)
 
+# def get_all_links(base_url, soup):
+#     links = set()
+#     for anchor in soup.find_all("a", href=True):
+#         href = anchor["href"]
+#         full_url = urljoin(base_url, href)
+#         if is_valid_url(full_url) and urlparse(base_url).netloc in full_url:
+#             links.add(full_url)
+#     return links
+
 def get_all_links(base_url, soup):
     links = set()
     for anchor in soup.find_all("a", href=True):
         href = anchor["href"]
         full_url = urljoin(base_url, href)
-        if is_valid_url(full_url) and urlparse(base_url).netloc in full_url:
+        if (
+            is_valid_url(full_url)
+            and urlparse(base_url).netloc in full_url
+            and not full_url.lower().endswith((".pdf", ".doc", ".docx", ".xls", ".xlsx"))
+        ):
             links.add(full_url)
     return links
 
-def scrape_page(url):
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-        response = requests.get(url, headers=headers, timeout=8)
-        if response.status_code != 200:
-            return "", []
-        soup = BeautifulSoup(response.text, "html.parser")
-        text = soup.get_text(separator="\n", strip=True)
-        links = get_all_links(url, soup)
-        return text, list(links)
-    except Exception as e:
-        print(f"[Error scraping] {url}: {e}")
-        return "", []
+# def scrape_page(url):
+#     try:
+#         headers = {
+#             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+#         }
+#         response = requests.get(url, headers=headers, timeout=8)
+#         if response.status_code != 200:
+#             return "", []
+#         soup = BeautifulSoup(response.text, "html.parser")
+#         text = soup.get_text(separator="\n", strip=True)
+#         links = get_all_links(url, soup)
+#         return text, list(links)
+#     except Exception as e:
+#         print(f"[Error scraping] {url}: {e}")
+#         return "", []
 
-def crawl_website(start_url, max_pages=10):
+# def crawl_website(start_url, max_pages=50):
+#     visited = set()
+#     to_visit = [start_url]
+#     content = []
+
+#     while to_visit and len(visited) < max_pages:
+#         url = to_visit.pop(0)
+#         if url in visited:
+#             continue
+#         print(f"Crawling: {url}")
+#         page_text, links = scrape_page(url)
+#         visited.add(url)
+#         if page_text:
+#             content.append(page_text)
+#         for link in links:
+#             if link not in visited and link not in to_visit:
+#                 to_visit.append(link)
+#         time.sleep(1)
+#         print(f"Total pages crawled: {len(visited)}")
+#     return "\n".join(content)
+
+async def scrape_page_js(url):
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context()
+            page = await context.new_page()
+            await page.goto(url, timeout=15000)
+            await page.wait_for_load_state("load")
+            content = await page.content()
+            soup = BeautifulSoup(content, "html.parser")
+            text = soup.get_text(separator="\n", strip=True)
+            links = get_all_links(url, soup)
+            await browser.close()
+            return text, list(links)
+    except Exception as e:
+        print(f"[JS Error scraping] {url}: {e}")
+        return "", []
+    
+async def crawl_website_js(start_url, max_pages=50):
     visited = set()
     to_visit = [start_url]
     content = []
@@ -65,15 +119,15 @@ def crawl_website(start_url, max_pages=10):
         if url in visited:
             continue
         print(f"Crawling: {url}")
-        page_text, links = scrape_page(url)
+        page_text, links = await scrape_page_js(url)
         visited.add(url)
         if page_text:
             content.append(page_text)
         for link in links:
             if link not in visited and link not in to_visit:
                 to_visit.append(link)
-        time.sleep(1)
-
+        await asyncio.sleep(1)
+        print(f"Total pages crawled: {len(visited)}")
     return "\n".join(content)
 
 def chunk_text(text, max_chunk_size=500):
@@ -105,19 +159,41 @@ async def serve_ui():
 
 @app.post("/remember")
 async def remember_url(req: URLRequest):
-    global chat_session
-    text = crawl_website(req.url, max_pages=req.max_pages)
+    global chat_session, gen_model
+
+    genai.configure(api_key="AIzaSyCL1A9NU5pavlxO3TdT72SXI-4SX4F6vDg")  # API key
+
+    chat_session = None
+    gen_model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
+    chat_session = gen_model.start_chat()
+
+    # 🕸️ Crawl and chunk website content
+    # text = crawl_website(req.url, max_pages=500)
+    text = await crawl_website_js(req.url, max_pages=50)
     chunks = chunk_text(text)
     context_store["user"] = chunks
-    context_blob = "\n".join(chunks)
-    chat_session = gen_model.start_chat()
-    chat_session.send_message(f"This is the context from the website:\n{context_blob}")
-    return {"message": f"Done"}
+
+    context_blob = "\n".join(chunks[:30])
+    chat_session.send_message(f"This is the info from the website:\n{context_blob} but you can use your own thoughts")
+
+    return {"message": f"Scraped and stored context from {req.url} into Gemini session."}
 
 @app.post("/ask")
 async def ask_question(req: QuestionRequest):
     global chat_session
     if chat_session is None:
         return {"answer": "Please scrape a website first using the remember URL box."}
-    response = chat_session.send_message(req.question)
+
+    all_chunks = context_store.get("user", [])
+    top_chunks = get_top_chunks(req.question, all_chunks, k=5)
+    condensed_context = "\n".join(top_chunks)
+
+    prompt = (
+        f"From the following website content, extract the specific answer to this question: '{req.question}'.\n"
+        f"If the answer is a number like an interest rate, give only the number.\n\n"
+        f"Context:\n{condensed_context}"
+    )
+
+    response = chat_session.send_message(prompt)
     return {"answer": response.text}
+
