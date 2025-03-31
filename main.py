@@ -13,7 +13,7 @@ app = FastAPI()
 
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
-genai.configure(api_key="AIzaSyA7ZC_OPIyUcZh_egzm8uvjDsBPcb4Hb") # Gemini Api Key
+genai.configure(api_key="AIzaSyCliLXZWj2EgJiRx3dl-jqaxgBGAUIBmVg") # Gemini Api Key
 gen_model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
 chat_session = None  
 
@@ -112,7 +112,7 @@ async def remember_url(req: URLRequest):
     context_blob = "\n".join(chunks)
     chat_session = gen_model.start_chat()
     chat_session.send_message(f"This is the context from the website:\n{context_blob}")
-    return {"message": f"Scraped, embedded, and loaded into Gemini context from {req.url}"}
+    return {"message": f"Done"}
 
 @app.post("/ask")
 async def ask_question(req: QuestionRequest):
