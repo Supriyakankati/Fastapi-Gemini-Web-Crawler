@@ -11,19 +11,17 @@ from urllib.parse import urljoin, urlparse
 
 app = FastAPI()
 
-# Load embedding model
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
-# Set up Gemini
-genai.configure(api_key="AIzaSyA7ZC_OPIyUcZh_egzm8uvjDsBPcb4Hb2E") #Gemini key
+genai.configure(api_key="AIzaSyA7ZC_OPIyUcZh_egzm8uvjDsBPcb4Hb") # Gemini Api Key
 gen_model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
-chat_session = None
+chat_session = None  
+
 context_store = {}
 
 class URLRequest(BaseModel):
     url: str
-    max_pages: int = 50
-    query: str
+    max_pages: int = 10
 
 class QuestionRequest(BaseModel):
     question: str
@@ -44,7 +42,7 @@ def get_all_links(base_url, soup):
 def scrape_page(url):
     try:
         headers = {
-            "User-Agent": "Mozilla/5.0"
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
         response = requests.get(url, headers=headers, timeout=8)
         if response.status_code != 200:
@@ -54,10 +52,10 @@ def scrape_page(url):
         links = get_all_links(url, soup)
         return text, list(links)
     except Exception as e:
-        print(f"[Scraping error] {url}: {e}")
+        print(f"[Error scraping] {url}: {e}")
         return "", []
 
-def crawl_website(start_url, max_pages=50):
+def crawl_website(start_url, max_pages=10):
     visited = set()
     to_visit = [start_url]
     content = []
@@ -74,14 +72,14 @@ def crawl_website(start_url, max_pages=50):
         for link in links:
             if link not in visited and link not in to_visit:
                 to_visit.append(link)
-        time.sleep(1)  # throttle
+        time.sleep(1)
 
-    print(f"Total pages crawled: {len(visited)}")
     return "\n".join(content)
 
 def chunk_text(text, max_chunk_size=500):
     sentences = re.split(r'(?<=[.!?]) +', text)
-    chunks, current = [], ""
+    chunks = []
+    current = ""
     for sentence in sentences:
         if len(current) + len(sentence) <= max_chunk_size:
             current += sentence + " "
@@ -93,8 +91,6 @@ def chunk_text(text, max_chunk_size=500):
     return chunks
 
 def get_top_chunks(query, chunks, k=5):
-    if not chunks:
-        return []
     embeddings = embedding_model.encode(chunks)
     query_embedding = embedding_model.encode([query])
     distances = np.linalg.norm(embeddings - query_embedding, axis=1)
@@ -109,45 +105,19 @@ async def serve_ui():
 
 @app.post("/remember")
 async def remember_url(req: URLRequest):
-    global chat_session, gen_model
-
-    chat_session = None
-    genai.configure(api_key="AIzaSyA7ZC_OPIyUcZh_egzm8uvjDsBPcb4Hb2E")  # gemini key
-    gen_model = genai.GenerativeModel("gemini-1.5-pro-latest")
-    chat_session = gen_model.start_chat()
-
+    global chat_session
     text = crawl_website(req.url, max_pages=req.max_pages)
     chunks = chunk_text(text)
     context_store["user"] = chunks
-    context_blob = "\n".join(chunks[:15])
-    chat_session.send_message(
-    f"This is some info from the website. You may use it as supporting context. "
-    f"If you can’t find an answer in this content, you can answer using your own knowledge as well.\n\n"
-    f"Context:\n{context_blob}")
-    # chat_session.send_message(f"This is the context from the website:\n{context_blob}")
-    return {
-        "message": f"Done."
-    }
+    context_blob = "\n".join(chunks)
+    chat_session = gen_model.start_chat()
+    chat_session.send_message(f"This is the context from the website:\n{context_blob}")
+    return {"message": f"Scraped, embedded, and loaded into Gemini context from {req.url}"}
 
 @app.post("/ask")
 async def ask_question(req: QuestionRequest):
     global chat_session
     if chat_session is None:
-        return {"answer": "Please scrape a website first."}
-
-    chunks = context_store.get("user", [])
-    top_chunks = get_top_chunks(req.question, chunks)
-    context_blob = "\n".join(top_chunks)
-
-    prompt = (
-        f"Use this website content to answer the question.\n"
-        f"If a number is needed, just return the number.\n\n"
-        f"Context:\n{context_blob}\n\n"
-        f"Question: {req.question}"
-    )
-
-    try:
-        response = chat_session.send_message(prompt)
-        return {"answer": response.text}
-    except Exception as e:
-        return {"answer": f"❗ Error from Gemini: {e}"}
+        return {"answer": "Please scrape a website first using the remember URL box."}
+    response = chat_session.send_message(req.question)
+    return {"answer": response.text}
