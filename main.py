@@ -13,7 +13,7 @@ app = FastAPI()
 
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
-genai.configure(api_key="AIzaSyCliLXZWj2EgJiRx3dl-jqaxgBGAUIBmVg") # Gemini Api Key
+genai.configure(api_key="AIzaSyBda9FWdFFYGZ21uA8YxupXOxlHT_JL6do") # Gemini Api Key
 gen_model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
 chat_session = None  
 
@@ -105,12 +105,19 @@ async def serve_ui():
 
 @app.post("/remember")
 async def remember_url(req: URLRequest):
-    global chat_session
+    global chat_session, gen_model
+
+    # 🔁 Reset session and reload API key + model
+    # chat_session = None
+    # genai.configure(api_key="AIzaSyAwJxdEx_St8yhJTX6uhlqjOMYynVAtkgI")  # Replace with key
+    # gen_model = genai.GenerativeModel("gemini-1.5-pro-latest")
+    chat_session = gen_model.start_chat()
+
     text = crawl_website(req.url, max_pages=req.max_pages)
     chunks = chunk_text(text)
     context_store["user"] = chunks
     context_blob = "\n".join(chunks)
-    chat_session = gen_model.start_chat()
+
     chat_session.send_message(f"This is the context from the website:\n{context_blob}")
     return {"message": f"Done"}
 
