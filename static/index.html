@@ -66,7 +66,7 @@
   const response = await fetch('/remember', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url: url, max_pages: 10, query: question })  // ✅ Include query
+    body: JSON.stringify({ url: url, max_pages: 10, query: question })  
   });
 
   const data = await response.json();
