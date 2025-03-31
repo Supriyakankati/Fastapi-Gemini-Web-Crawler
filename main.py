@@ -13,7 +13,7 @@ app = FastAPI()
 
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
-genai.configure(api_key="AIzaSyC_DuALGdNakB0sZ0m7QuaLKTnqul8T2Fs")
+genai.configure(api_key="AIzaSyCQRPe3ituOaIQB5Ut_-gxARgLK-96sRyc")
 gen_model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
 chat_session = None
 context_store = {}
@@ -110,7 +110,7 @@ async def remember_url(req: URLRequest):
     global chat_session, gen_model
 
     chat_session = None
-    genai.configure(api_key="AIzaSyC_DuALGdNakB0sZ0m7QuaLKTnqul8T2Fs")  # key
+    genai.configure(api_key="AIzaSyCQRPe3ituOaIQB5Ut_-gxARgLK-96sRyc")  # key
     gen_model = genai.GenerativeModel("gemini-1.5-pro-latest")
     chat_session = gen_model.start_chat()
 
