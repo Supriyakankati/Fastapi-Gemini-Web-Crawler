@@ -52,26 +52,26 @@
 
   <script>
     async function scrapeWebsite() {
-      const url = document.getElementById("urlInput").value;
-      const answerBox = document.getElementById("answer");
+  const url = document.getElementById("urlInput").value;
+  const question = document.getElementById("questionInput").value;
+  const answerBox = document.getElementById("answer");
 
-      if (!url) {
-        answerBox.innerText = "❗ Please enter a website URL.";
-        return;
-      }
+  if (!url) {
+    answerBox.innerText = "❗ Please enter a website URL.";
+    return;
+  }
 
-      answerBox.innerText = "⏳ Scraping and storing website content...";
+  answerBox.innerText = "⏳ Scraping...";
 
-      const response = await fetch('/remember', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url, max_pages: 10 })
-      });
+  const response = await fetch('/remember', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: url, max_pages: 50, query: question }) 
+  });
 
-      const data = await response.json();
-      answerBox.innerText = data.message || "⚠️ Unable to scrape website.";
-    }
-
+  const data = await response.json();
+  answerBox.innerText = data.message || "⚠️ Unable to scrape website.";
+}
     async function askQuestion() {
       const question = document.getElementById("questionInput").value;
       const answerBox = document.getElementById("answer");
@@ -81,7 +81,7 @@
         return;
       }
 
-      answerBox.innerText = "🤖 Asking Gemini...";
+      answerBox.innerText = "🤖 Asking...";
 
       const response = await fetch('/ask', {
         method: 'POST',
