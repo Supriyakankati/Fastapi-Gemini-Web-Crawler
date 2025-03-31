@@ -15,7 +15,7 @@ app = FastAPI()
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Set up Gemini
-genai.configure(api_key="AIzaSyA7ZC_OPIyUcZh_egzm8uvjDsBPcb4Hb2E")
+genai.configure(api_key="AIzaSyA7ZC_OPIyUcZh_egzm8uvjDsBPcb4Hb2E") #Gemini key
 gen_model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
 chat_session = None
 context_store = {}
@@ -76,7 +76,7 @@ def crawl_website(start_url, max_pages=50):
                 to_visit.append(link)
         time.sleep(1)  # throttle
 
-    print(f"✅ Total pages crawled: {len(visited)}")
+    print(f"Total pages crawled: {len(visited)}")
     return "\n".join(content)
 
 def chunk_text(text, max_chunk_size=500):
@@ -111,13 +111,11 @@ async def serve_ui():
 async def remember_url(req: URLRequest):
     global chat_session, gen_model
 
-    # 🔁 Reset Gemini session and API key
     chat_session = None
-    genai.configure(api_key="AIzaSyCTMbTvqcPH9ukqNOrIZTBZrO3nBq2Kc8Q")  # 🔑 Replace with your new key
+    genai.configure(api_key="AIzaSyA7ZC_OPIyUcZh_egzm8uvjDsBPcb4Hb2E")  # gemini key
     gen_model = genai.GenerativeModel("gemini-1.5-pro-latest")
     chat_session = gen_model.start_chat()
 
-    # 🕸️ Crawl and prepare chunks
     text = crawl_website(req.url, max_pages=req.max_pages)
     chunks = chunk_text(text)
     context_store["user"] = chunks
